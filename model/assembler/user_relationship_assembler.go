@@ -5,6 +5,8 @@ import (
 	"onboarding-demo/model/po"
 )
 
+const dataTypeRelationship = "relationship"
+
 func ToRelationshipDTO(relationPO po.UserRelationship) (relationDTO dto.UserRelationship) {
 	relationDTO.FollowUserId = relationPO.FollowUserId
 	switch relationPO.State {
@@ -17,7 +19,7 @@ func ToRelationshipDTO(relationPO po.UserRelationship) (relationDTO dto.UserRela
 	default:
 		relationDTO.State = "default"
 	}
-	relationDTO.DataType = "relationship"
+	relationDTO.DataType = dataTypeRelationship
 	return
 }
 

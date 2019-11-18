@@ -14,7 +14,7 @@ import (
 
 // GET /users
 // query whole user infos
-func GetWholeUsers(writer http.ResponseWriter, request *http.Request) {
+func GetUsers(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	writer.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(writer).Encode(assembler.ToUserDTOs(dao.Users()))
@@ -58,6 +58,8 @@ func generateUser(userName string) (user po.User) {
 	return
 }
 
+// GET /users/:user_id/relationships
+// query relationships of a user
 func GetRelationshipsByUser(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -68,6 +70,8 @@ func GetRelationshipsByUser(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
+// PUT /users/:user_id/relationships/other_user_id
+// modify user's relationship
 func CreateOrUpdateRelationships(writer http.ResponseWriter, request *http.Request) {
 	var relationshipDTO dto.UserRelationship
 	body, err := ioutil.ReadAll(io.LimitReader(request.Body, 1048576))

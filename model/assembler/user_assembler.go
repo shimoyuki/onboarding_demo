@@ -5,10 +5,12 @@ import (
 	"onboarding-demo/model/po"
 )
 
+const dataTypeUser = "user"
+
 func ToUserDTO(userPO po.User) (userDTO dto.User) {
 	userDTO.UserId = userPO.UserId
 	userDTO.UserName = userPO.UserName
-	userDTO.DataType = "user"
+	userDTO.DataType = dataTypeUser
 	return
 }
 
