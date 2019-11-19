@@ -6,9 +6,9 @@ import (
 )
 
 func InsertRelationship(relationship po.UserRelationship) (bool, po.UserRelationship) {
-	created, err := Db.Model(&relationship).
+	isSuccess, err := Db.Model(&relationship).
 		Where("id = ?", relationship.Id).
-		OnConflict("(id) DO UPDATE").
+		OnConflict("ON CONSTRAINT uniq_user_follow DO UPDATE").
 		Set("state = EXCLUDED.state").
 		Returning("id").
 		SelectOrInsert()
@@ -16,7 +16,7 @@ func InsertRelationship(relationship po.UserRelationship) (bool, po.UserRelation
 		log.Println(err)
 		return false, relationship
 	}
-	return created, relationship
+	return isSuccess, relationship
 }
 
 func DeleteRelationship(id string) int {
@@ -33,7 +33,6 @@ func DeleteRelationship(id string) int {
 
 func UpdateRelationship(relationship po.UserRelationship) int {
 	result, err := Db.Model(&relationship).
-		OnConflict("DO NOTHING").
 		Where("user_id = ? and follow_user_id = ?", relationship.UserId, relationship.FollowUserId).
 		Update()
 	if err != nil {

@@ -6,16 +6,15 @@ import (
 )
 
 func InsertUser(user po.User) (bool, po.User) {
-	created, err := Db.Model(&user).
+	isSuccess, err := Db.Model(&user).
 		Where("user_id = ?", user.UserId).
-		OnConflict("DO NOTHING").
 		Returning("id").
 		SelectOrInsert()
 	if err != nil {
 		log.Println(err)
 		return false, user
 	}
-	return created, user
+	return isSuccess, user
 }
 
 func DeleteUser(userId string) int {
@@ -32,7 +31,6 @@ func DeleteUser(userId string) int {
 
 func UpdateUser(user po.User) int {
 	result, err := Db.Model(&user).
-		OnConflict("DO NOTHING").
 		Where("user_id = ?", user.UserId).
 		Update()
 	if err != nil {

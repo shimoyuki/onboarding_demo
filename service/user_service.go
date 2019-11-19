@@ -5,11 +5,14 @@ import (
 	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"onboarding-demo/dao"
 	"onboarding-demo/model/assembler"
 	"onboarding-demo/model/dto"
+	"onboarding-demo/model/enum"
 	"onboarding-demo/model/po"
+	"onboarding-demo/utils"
 )
 
 // GET /users
@@ -17,8 +20,15 @@ import (
 func GetUsers(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	writer.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(writer).Encode(assembler.ToUserDTOs(dao.Users()))
-	if err != nil {
+	if err := json.NewEncoder(writer).Encode(assembler.ToUserDTOs(dao.Users())); err != nil {
+		writeErrorResponse(writer, err.Error())
+	}
+}
+
+func writeErrorResponse(writer http.ResponseWriter, msg string) {
+	log.Println(msg)
+	writer.WriteHeader(http.StatusInternalServerError)
+	if err := json.NewEncoder(writer).Encode(msg); err != nil {
 		panic(err)
 	}
 }
@@ -29,23 +39,25 @@ func CreateUser(writer http.ResponseWriter, request *http.Request) {
 	var userDTO dto.User
 	body, err := ioutil.ReadAll(io.LimitReader(request.Body, 1048576))
 	if err != nil {
-		panic(err)
+		writeErrorResponse(writer, err.Error())
 	}
-	if err := request.Body.Close(); err != nil {
-		panic(err)
-	}
+	defer func() {
+		if err := request.Body.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	if err := json.Unmarshal(body, &userDTO); err != nil || userDTO.UserName == "" {
-		writer.WriteHeader(http.StatusUnprocessableEntity) // unprocessable entity
-		if err := json.NewEncoder(writer).Encode(err); err != nil {
-			panic(err)
-		}
+	if err := json.Unmarshal(body, &userDTO); err != nil {
+		writeErrorResponse(writer, err.Error())
+	}
+	if utils.IsStringEmpty(userDTO.UserName) {
+		writeErrorResponse(writer, "name can't be blank")
 	}
 	_, userPO := dao.InsertUser(generateUser(userDTO.UserName))
 	writer.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(writer).Encode(assembler.ToUserDTO(userPO)); err != nil {
-		panic(err)
+		writeErrorResponse(writer, err.Error())
 	}
 }
 
@@ -64,9 +76,8 @@ func GetRelationshipsByUser(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	writer.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(writer).Encode(assembler.ToRelationshipDTOs(dao.RelationshipsByUserId(vars["user_id"])))
-	if err != nil {
-		panic(err)
+	if err := json.NewEncoder(writer).Encode(assembler.ToRelationshipDTOs(dao.RelationshipsByUserId(vars["user_id"]))); err != nil {
+		writeErrorResponse(writer, err.Error())
 	}
 }
 
@@ -76,41 +87,43 @@ func CreateOrUpdateRelationships(writer http.ResponseWriter, request *http.Reque
 	var relationshipDTO dto.UserRelationship
 	body, err := ioutil.ReadAll(io.LimitReader(request.Body, 1048576))
 	if err != nil {
-		panic(err)
+		writeErrorResponse(writer, err.Error())
 	}
-	if err := request.Body.Close(); err != nil {
-		panic(err)
-	}
+	defer func() {
+		if err := request.Body.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	writer.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if err := json.Unmarshal(body, &relationshipDTO); err != nil {
-		writer.WriteHeader(http.StatusUnprocessableEntity) // unprocessable entity
-		if err := json.NewEncoder(writer).Encode(err); err != nil {
-			panic(err)
-		}
+		writeErrorResponse(writer, err.Error())
 	}
 	vars := mux.Vars(request)
 	userId, followUserId := vars["user_id"], vars["other_user_id"]
-	var state int16
-	switch relationshipDTO.State {
-	case "like":
-		followRelationship := dao.RelationshipsByBothUserIds(followUserId, userId)
-		if followRelationship.State == po.LIKE {
-			state = po.MATCHED
-			followRelationship.State = state
-			dao.UpdateRelationship(followRelationship)
-		} else {
-			state = po.LIKE
-		}
-	case "dislike":
-		state = po.DISLIKE
-	default:
-		state = po.DEFAULT
+	if utils.IsAnyStringEmpty(userId, followUserId, relationshipDTO.State) {
+		writeErrorResponse(writer, "user_id, other_user_id and state can't be blank")
 	}
+	state := enum.CodeByName(relationshipDTO.State)
+	followRelationshipPO := dao.RelationshipsByBothUserIds(followUserId, userId)
+	switch state {
+	case enum.Like.Code():
+		if followRelationshipPO.State == enum.Like.Code() {
+			state = enum.Matched.Code()
+			followRelationshipPO.State = state
+		}
+	case enum.Dislike.Code():
+		if followRelationshipPO.State == enum.Matched.Code() {
+			followRelationshipPO.State = enum.Like.Code()
+		}
+	default:
+		writeErrorResponse(writer, "only state within {\"like\",\"dislike\"} is allowed")
+	}
+	dao.UpdateRelationship(followRelationshipPO)
 	_, relationshipPO := dao.InsertRelationship(generateRelationship(userId, followUserId, state))
 	writer.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(writer).Encode(assembler.ToRelationshipDTO(relationshipPO)); err != nil {
-		panic(err)
+		writeErrorResponse(writer, err.Error())
 	}
 }
 

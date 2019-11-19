@@ -5,11 +5,11 @@ import (
 )
 
 type User struct {
-	Id          int
+	Id       int
 	UserId   string
 	UserName string
 	Password string
-	Gender    int16
+	Gender   int16
 }
 
 func (user User) String() string {

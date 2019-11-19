@@ -2,6 +2,7 @@ package assembler
 
 import (
 	"onboarding-demo/model/dto"
+	"onboarding-demo/model/enum"
 	"onboarding-demo/model/po"
 )
 
@@ -9,16 +10,7 @@ const dataTypeRelationship = "relationship"
 
 func ToRelationshipDTO(relationPO po.UserRelationship) (relationDTO dto.UserRelationship) {
 	relationDTO.FollowUserId = relationPO.FollowUserId
-	switch relationPO.State {
-	case po.LIKE:
-		relationDTO.State = "like"
-	case po.DISLIKE:
-		relationDTO.State = "dislike"
-	case po.MATCHED:
-		relationDTO.State = "matched"
-	default:
-		relationDTO.State = "default"
-	}
+	relationDTO.State = enum.NameByCode(relationPO.State)
 	relationDTO.DataType = dataTypeRelationship
 	return
 }
